@@ -73,7 +73,8 @@ module Ruboto
           emulator_opts << ' -noskin' unless android_device
           emulator_opts << ' -no-snapshot' if no_snapshot
           if !ON_MAC_OS_X && !ON_WINDOWS && ENV['DISPLAY'].nil?
-            emulator_opts << ' -no-window -no-audio'
+            emulator_opts << ' -no-window'
+            ENV['QEMU_AUDIO_DRV'] = 'none'
           end
 
           kill_all_emulators(emulator_cmd)
@@ -91,7 +92,13 @@ module Ruboto
           end
 
           puts "Start emulator #{avd_name}#{' without snapshot' if no_snapshot}"
-          system "emulator -avd #{avd_name} #{emulator_opts} #{'&' unless ON_WINDOWS}"
+          start_cmd = "emulator -avd #{avd_name} #{emulator_opts} #{'&' unless ON_WINDOWS}"
+
+          # FIXME: (uwe) Remove debug
+          puts start_cmd
+          # EMXIF
+
+          system start_cmd
           return if ON_WINDOWS
 
           3.times do |i|

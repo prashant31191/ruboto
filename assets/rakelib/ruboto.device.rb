@@ -85,74 +85,72 @@ end
 
 def install_apk(package, apk_file)
   wait_for_valid_device
-
-  puts `adb shell ls -l /data/local`
-  puts `adb shell chmod a+rwx /data/local/tmp`
-
   failure_pattern = /^Failure \[(.*)\]/
   success_pattern = /^Success/
-  install_timeout = 20 * 60
+  install_timeout = 25 * 60
   case package_installed?(package, apk_file)
   when true
     puts "Package #{package} already installed."
     return
   when false
-    puts "Package #{package} already installed, but of different size or timestamp.  Replacing package."
-    set_device_time
-    output = nil
-    install_retry_count = 0
+    puts "Package #{package} already installed, but of different size or timestamp."
+    replace_apk = true
+  else
+    # Package not installed.
+  end
+
+  set_device_time
+  output = nil
+  5.times do |install_retry_count|
+    if install_retry_count > 0
+      puts output
+      puts 'Retrying install...'
+    end
+    # replace_apk ||= install_retry_count >= 3
+    puts "#{replace_apk ? 'Replacing' : 'Installing'} package #{package}"
+
     begin
       Timeout.timeout install_timeout do
-        output = `adb install -r "#{apk_file}" 2>&1`
+        install_start = Time.now
+        output = `adb install #{'-r' if replace_apk} "#{apk_file}" 2>&1`
       end
     rescue Timeout::Error
       puts "Installing package #{package} timed out after #{install_timeout}s."
-      install_retry_count += 1
-      if install_retry_count <= 3
-        puts 'Retrying install...'
-        retry
-      end
-      puts 'Trying one final time to install the package:'
-      output = `adb install -r "#{apk_file}" 2>&1`
+      next
     end
+
     if $? == 0 && output !~ failure_pattern && output =~ success_pattern
+      puts "Install took #{(Time.now - install_start).to_i}s."
       clear_update(package, apk_file)
       return
     end
     case $1
     when 'INSTALL_PARSE_FAILED_INCONSISTENT_CERTIFICATES'
       puts 'Found package signed with different certificate.  Uninstalling it and retrying install.'
+    when 'INSTALL_FAILED_INVALID_URI'
+      puts 'Maybe wrong write permissions for APK push directory.  Changing permissions.'
+      puts `adb shell ls -l /data/local`
+      puts `adb shell chmod a+rwx /data/local/tmp`
+      puts `adb shell ls -l /data/local`
+    when 'INSTALL_FAILED_ALREADY_EXISTS'
+      puts 'Package allready exists.'
+      if replace_apk
+        puts 'Uninstalling package.'
+      else
+        replace_apk = true
+        next
+      end
     else
       puts "'adb install' returned an unknown error: (#$?) #{$1 ? "[#$1}]" : output}."
       puts "Uninstalling #{package} and retrying install."
     end
+
     uninstall_apk(package, apk_file)
-  else
-    # Package not installed.
-    set_device_time
+    replace_apk = false
   end
-  puts "Installing package #{package}"
-  output = nil
-  install_retry_count = 0
-  begin
-    Timeout.timeout install_timeout do
-      output = `adb install "#{apk_file}" 2>&1`
-    end
-  rescue Timeout::Error
-    puts "Installing package #{package} timed out after #{install_timeout}s."
-    install_retry_count += 1
-    if install_retry_count <= 3
-      puts 'Retrying install...'
-      retry
-    end
-    puts 'Trying one final time to install the package:'
-    install_start = Time.now
-    output = `adb install "#{apk_file}" 2>&1`
-    puts "Install took #{(Time.now - install_start).to_i}s."
-  end
-  puts output
-  raise "Install failed (#{$?}) #{$1 ? "[#$1}]" : output}" if $? != 0 || output =~ failure_pattern || output !~ success_pattern
+
   clear_update(package, apk_file)
+  raise "Install failed (#{$?}) #{$1 ? "[#$1}]" : output}"
 end
 
 def uninstall_apk(package_name, apk_file)
