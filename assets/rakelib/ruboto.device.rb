@@ -127,11 +127,12 @@ def install_apk(package, apk_file)
     case $1
     when 'INSTALL_PARSE_FAILED_INCONSISTENT_CERTIFICATES'
       puts 'Found package signed with different certificate.  Uninstalling it and retrying install.'
-    when 'INSTALL_FAILED_INVALID_URI'
-      puts 'Maybe wrong write permissions for APK push directory.  Changing permissions.'
-      puts `adb shell ls -l /data/local`
-      puts `adb shell chmod a+rwx /data/local/tmp`
-      puts `adb shell ls -l /data/local`
+    when 'INSTALL_FAILED_INVALID_URI', %r{failed to copy '(?:.*)' to '(.*)/RubotoTestApp-debug.apk': Read-only file system}
+      push_dir = $1 || '/data/local/tmp'
+      puts "Maybe wrong write permissions for APK push directory #{push_dir.inspect}.  Changing permissions."
+      puts `adb shell ls -l #{File.dirname(push_dir)}`
+      puts `adb shell chmod a+rwx #{push_dir}`
+      puts `adb shell ls -l #{File.dirname(push_dir)}`
     when 'INSTALL_FAILED_ALREADY_EXISTS'
       puts 'Package allready exists.'
       if replace_apk
