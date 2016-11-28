@@ -541,7 +541,7 @@ end
 task '.travis.yml' do
   puts "Regenerating #{'.travis.yml'}"
   source = File.read('.travis.yml')
-  test_parts = 3
+  test_parts = 4
   matrix = ''
   allow_failures = ''
 
