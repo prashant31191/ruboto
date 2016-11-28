@@ -109,9 +109,9 @@ def install_apk(package, apk_file)
     # replace_apk ||= install_retry_count >= 3
     puts "#{replace_apk ? 'Replacing' : 'Installing'} package #{package}"
 
+    install_start = Time.now
     begin
       Timeout.timeout install_timeout do
-        install_start = Time.now
         output = `adb install #{'-r' if replace_apk} "#{apk_file}" 2>&1`
       end
     rescue Timeout::Error
