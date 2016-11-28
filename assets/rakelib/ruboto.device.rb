@@ -86,6 +86,9 @@ end
 def install_apk(package, apk_file)
   wait_for_valid_device
 
+  puts `adb shell ls -l /data/local`
+  puts `adb shell chmod a+rwx /data/local/tmp`
+
   failure_pattern = /^Failure \[(.*)\]/
   success_pattern = /^Success/
   install_timeout = 20 * 60
