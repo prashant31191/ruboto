@@ -539,7 +539,7 @@ task :get_jruby_jars_snapshots do
 end
 
 def test_parts(api)
-  (api == 23) ? 4 : 3
+  (api == 23) ? 6 : 3
 end
 
 task '.travis.yml' do
